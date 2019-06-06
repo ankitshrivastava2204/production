@@ -1,0 +1,646 @@
+diff --git a/css/webform-quiz.answer-description.css b/css/webform-quiz.answer-description.css
+new file mode 100644
+index 0000000..3d3565c
+--- /dev/null
++++ b/css/webform-quiz.answer-description.css
+@@ -0,0 +1,10 @@
++.webform-quiz-answer-description .result {
++  font-size: 24px;
++  font-weight: bold;
++}
++.webform-quiz-answer-description .correct {
++  color: green;
++}
++.webform-quiz-answer-description .wrong {
++  color: red;
++}
+diff --git a/includes/webform_quiz.theme.inc b/includes/webform_quiz.theme.inc
+index a04dac2..524f652 100644
+--- a/includes/webform_quiz.theme.inc
++++ b/includes/webform_quiz.theme.inc
+@@ -10,9 +10,10 @@
+  */
+ function webform_quiz_theme($existing, $type, $theme, $path) {
+   $info = [
+-    'webform_quiz_correct_answer_description' => [
++    'webform_quiz_answer_description' => [
+       'variables' => [
+         'correct_answer_description' => NULL,
++        'incorrect_answer_description' => NULL,
+         'is_user_correct' => NULL,
+       ],
+     ],
+diff --git a/src/Element/WebformQuizCorrectAnswerDescription.php b/src/Element/WebformQuizAnswerDescription.php
+similarity index 69%
+rename from src/Element/WebformQuizCorrectAnswerDescription.php
+rename to src/Element/WebformQuizAnswerDescription.php
+index 60febc7..f29bcff 100644
+--- a/src/Element/WebformQuizCorrectAnswerDescription.php
++++ b/src/Element/WebformQuizAnswerDescription.php
+@@ -5,11 +5,11 @@ namespace Drupal\webform_quiz\Element;
+ use Drupal\Core\Render\Element\RenderElement;
+ 
+ /**
+- * Provides a render element to display webform descriptions.
++ * Provides a render element to display answer descriptions.
+  *
+- * @RenderElement("webform_quiz_correct_answer_description")
++ * @RenderElement("webform_quiz_answer_description")
+  */
+-class WebformQuizCorrectAnswerDescription extends RenderElement {
++class WebformQuizAnswerDescription extends RenderElement {
+ 
+   /**
+    * {@inheritdoc}
+@@ -18,12 +18,13 @@ class WebformQuizCorrectAnswerDescription extends RenderElement {
+     $class = get_class($this);
+ 
+     return [
+-      '#theme' => 'webform_quiz_correct_answer_description',
++      '#theme' => 'webform_quiz_answer_description',
+       '#correct_answer' => [],
+       '#correct_answer_description' => NULL,
++      '#incorrect_answer_description' => NULL,
+       '#triggering_element' => [],
+       '#pre_render' => [
+-        [$class, 'preRenderWebformQuizCorrectAnswerDescription'],
++        [$class, 'preRenderWebformQuizAnswerDescription'],
+       ],
+     ];
+   }
+@@ -38,7 +39,7 @@ class WebformQuizCorrectAnswerDescription extends RenderElement {
+    * @return array
+    *   The modified element with webform submission information.
+    */
+-  public static function preRenderWebformQuizCorrectAnswerDescription(array $element) {
++  public static function preRenderWebformQuizAnswerDescription(array $element) {
+     $triggering_element = $element['#triggering_element'];
+     $correct_answers = $element['#correct_answer'];
+     $user_selected_value = $triggering_element['#default_value'];
+diff --git a/src/Plugin/WebformElement/WebformQuizBase.php b/src/Plugin/WebformElement/WebformQuizBase.php
+new file mode 100644
+index 0000000..3068c1e
+--- /dev/null
++++ b/src/Plugin/WebformElement/WebformQuizBase.php
+@@ -0,0 +1,250 @@
++<?php
++
++namespace Drupal\webform_quiz\Plugin\WebformElement;
++
++use Drupal\Component\Utility\Html;
++use Drupal\Core\Ajax\AjaxResponse;
++use Drupal\Core\Ajax\HtmlCommand;
++use Drupal\Core\Ajax\InvokeCommand;
++use Drupal\Core\Form\FormStateInterface;
++use Drupal\Core\Render\Renderer;
++use Drupal\webform\Plugin\WebformElement\Radios;
++use Drupal\webform\WebformSubmissionInterface;
++use Symfony\Component\DependencyInjection\ContainerInterface;
++
++/**
++ * Provides a base 'webform_quiz' element.
++ */
++abstract class WebformQuizBase extends Radios {
++
++  /**
++   * The renderer service.
++   *
++   * @var \Drupal\Core\Render\Renderer
++   */
++  protected $renderer;
++
++  /**
++   * {@inheritdoc}
++   */
++  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
++    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
++
++    $instance->setRenderer($container->get('renderer'));
++
++    return $instance;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function getDefaultProperties() {
++    return [
++      // Options.
++      'webform_quiz_number_of_points' => 1,
++      'show_answer_description' => FALSE,
++      'allow_change_value' => FALSE,
++      // Form display.
++      'correct_answer' => [],
++      'correct_answer_description' => '',
++      'incorrect_answer_description' => '',
++    ] + parent::getDefaultProperties();
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function form(array $form, FormStateInterface $form_state) {
++    $form = parent::form($form, $form_state);
++
++    $form['options']['options']['#type'] = 'webform_quiz_webform_element_options';
++
++    // Add our custom options.
++    $form['options']['webform_quiz_number_of_points'] = [
++      '#type' => 'number',
++      '#title' => t('Number of points'),
++      '#description' => t('Enter the number of points for this quiz question.'),
++    ];
++    $form['options']['show_answer_description'] = [
++      '#type' => 'checkbox',
++      '#title' => $this->t('Show answer description immediately?'),
++      '#description' => $this->t('If checked, the answer description will be displayed immediately after an option is selected.'),
++      '#return_value' => TRUE,
++    ];
++    $form['options']['allow_change_value'] = [
++      '#type' => 'checkbox',
++      '#title' => $this->t('Allow user to change answer?'),
++      '#description' => $this->t('If checked, the user will be able to update their answer after being shown the answer description.'),
++      '#return_value' => TRUE,
++      '#states' => [
++        'visible' => [
++          ':input[name="properties[show_answer_description]"]' => ['checked' => TRUE],
++        ],
++      ],
++    ];
++
++    return $form;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
++    $form = parent::buildConfigurationForm($form, $form_state);
++    $element_properties = $form_state->get('element_properties');
++
++    // Modify the existing element description to distinguish it from the
++    // correct answer description.
++    $form['element_description']['description']['#title'] = $this->t('Element Description');
++
++    // Add a WYSIWYG for the (in)correct answer descriptions.
++    $form['element_description']['correct_answer_description'] = [
++      '#type' => 'webform_html_editor',
++      '#title' => $this->t('Correct Answer Description'),
++      '#description' => $this->t('A description of why the correct answer is correct.'),
++      '#default_value' => isset($element_properties['correct_answer_description']) ? $element_properties['correct_answer_description'] : '',
++      '#weight' => 0,
++    ];
++    $form['element_description']['incorrect_answer_description'] = [
++      '#type' => 'webform_html_editor',
++      '#title' => $this->t('Incorrect Answer Description'),
++      '#description' => $this->t('A description of why the answer is incorrect.'),
++      '#default_value' => isset($element_properties['incorrect_answer_description']) ? $element_properties['incorrect_answer_description'] : '',
++      '#weight' => 0,
++    ];
++
++    return $form;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
++    parent::validateConfigurationForm($form, $form_state);
++
++    // Make sure no empty options get submitted.
++    $values = $form_state->getValues();
++    $values['options'] = array_filter($values['options']);
++    $form_state->setValues($values);
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function prepare(array &$element, WebformSubmissionInterface $webform_submission = NULL) {
++    // This addresses an issue where the webform_quiz_radios element was not
++    // appearing in the webform.
++    $element['#type'] = 'radios';
++
++    $answer_description_wrapper = [
++      '#type' => 'container',
++      '#attributes' => ['id' => self::getElementId($element)],
++    ];
++    $element['#suffix'] = $this->renderer->render($answer_description_wrapper);
++
++    if (!empty($element['#correct_answer_description']) || !empty($element['#incorrect_answer_description'])) {
++      $element['#ajax'] = [
++        'callback' => [get_called_class(), 'ajaxShowAnswerDescription'],
++        'event' => 'change',
++        'progress' => [
++          'type' => 'throbber',
++          'message' => NULL,
++        ],
++      ];
++    }
++
++    parent::prepare($element, $webform_submission);
++  }
++
++  /**
++   * Ajax callback: Show the (in)correct description when an option is selected.
++   *
++   * @param array $form
++   *   An associative array containing the structure of the form.
++   * @param \Drupal\Core\Form\FormStateInterface $form_state
++   *   The current state of the form.
++   *
++   * @return \Drupal\Core\Ajax\AjaxResponse
++   *   An Ajax response that display the answer description.
++   */
++  public static function ajaxShowAnswerDescription(array &$form, FormStateInterface $form_state) {
++    $ajax_response = new AjaxResponse();
++
++    $triggering_element = $form_state->getTriggeringElement();
++    $element_key = $triggering_element['#name'];
++    // Fix element key when it is multiple as checkboxes.
++    $multiple = FALSE;
++    if (preg_match('/\[/', $element_key)) {
++      list($element_key) = explode('[', $element_key . '[');
++      $multiple = TRUE;
++    }
++
++    /** @var \Drupal\webform\WebformSubmissionForm $form_object */
++    $form_object = $form_state->getFormObject();
++    $webform = $form_object->getWebform();
++    $element = $webform->getElement($element_key);
++    $element_id = self::getElementId($element);
++
++    $build['#type'] = 'container';
++    $build['#attributes']['id'] = $element_id;
++    $build['description'] = [
++      '#type' => 'webform_quiz_answer_description',
++      '#correct_answer' => $element['#correct_answer'],
++      '#correct_answer_description' => isset($element['#correct_answer_description']) ? $element['#correct_answer_description'] : '',
++      '#incorrect_answer_description' => isset($element['#incorrect_answer_description']) ? $element['#incorrect_answer_description'] : '',
++      '#triggering_element' => $triggering_element,
++      '#attached' => [
++        'library' => ['webform_quiz/answer_description'],
++      ],
++    ];
++
++    $ajax_response->addCommand(new HtmlCommand('#' . $element_id, $build));
++
++    if (isset($element['#allow_change_value']) && empty($element['#allow_change_value'])) {
++      if ($multiple) {
++        $selector = sprintf('input[name^="%s["]', $element_key);
++      }
++      else {
++        $selector = sprintf('input[name="%s"]', $element_key);
++      }
++
++      $ajax_response->addCommand(new InvokeCommand($selector, 'prop', ['disabled', 'true']));
++    }
++
++    // Allow other modules to add ajax commands.
++    \Drupal::moduleHandler()->invokeAll(
++      'webform_quiz_show_answer_description',
++      [
++        $ajax_response,
++        $element,
++        $form_state,
++      ]
++    );
++
++    return $ajax_response;
++  }
++
++  /**
++   * Builds a unique ID.
++   *
++   * @param array $element
++   *   An element.
++   *
++   * @return string
++   *   The formatted id.
++   */
++  public static function getElementId(array $element) {
++    return 'correct-answer-description-wrapper-' . Html::cleanCssIdentifier($element['#webform_key']);
++  }
++
++  /**
++   * Sets the renderer service.
++   *
++   * @param \Drupal\Core\Render\Renderer $renderer
++   *   The renderer service.
++   */
++  protected function setRenderer(Renderer $renderer) {
++    $this->renderer = $renderer;
++  }
++
++}
+diff --git a/src/Plugin/WebformElement/WebformQuizCheckboxes.php b/src/Plugin/WebformElement/WebformQuizCheckboxes.php
+index 3dfa7bb..57b996f 100644
+--- a/src/Plugin/WebformElement/WebformQuizCheckboxes.php
++++ b/src/Plugin/WebformElement/WebformQuizCheckboxes.php
+@@ -15,7 +15,7 @@ use Drupal\webform\WebformSubmissionInterface;
+  *   category = @Translation("Webform Quiz"),
+  * )
+  */
+-class WebformQuizCheckboxes extends WebformQuizRadios {
++class WebformQuizCheckboxes extends WebformQuizBase {
+ 
+   /**
+    * {@inheritdoc}
+@@ -31,9 +31,10 @@ class WebformQuizCheckboxes extends WebformQuizRadios {
+    * {@inheritdoc}
+    */
+   public function prepare(array &$element, WebformSubmissionInterface $webform_submission = NULL) {
++    parent::prepare($element, $webform_submission);
++
+     // This addresses an issue where the webform_quiz_checkboxes element was not
+     // appearing in the webform.
+-    parent::prepare($element, $webform_submission);
+     $element['#type'] = 'checkboxes';
+   }
+ 
+diff --git a/src/Plugin/WebformElement/WebformQuizRadios.php b/src/Plugin/WebformElement/WebformQuizRadios.php
+index becf159..b7c0770 100644
+--- a/src/Plugin/WebformElement/WebformQuizRadios.php
++++ b/src/Plugin/WebformElement/WebformQuizRadios.php
+@@ -2,15 +2,6 @@
+ 
+ namespace Drupal\webform_quiz\Plugin\WebformElement;
+ 
+-use Drupal;
+-use Drupal\Component\Utility\Html;
+-use Drupal\Core\Ajax\AjaxResponse;
+-use Drupal\Core\Ajax\HtmlCommand;
+-use Drupal\Core\Ajax\InvokeCommand;
+-use Drupal\Core\Form\FormStateInterface;
+-use Drupal\webform\Plugin\WebformElement\Radios;
+-use Drupal\webform\WebformSubmissionInterface;
+-
+ /**
+  * Provides a 'webform_quiz_radios' element.
+  *
+@@ -22,193 +13,4 @@ use Drupal\webform\WebformSubmissionInterface;
+  *   category = @Translation("Webform Quiz"),
+  * )
+  */
+-class WebformQuizRadios extends Radios {
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function getDefaultProperties() {
+-    return [
+-      // Options.
+-      'webform_quiz_number_of_points' => 1,
+-      'show_answer_description' => FALSE,
+-      'allow_change_value' => FALSE,
+-      // Form display.
+-      'correct_answer' => [],
+-      'correct_answer_description' => '',
+-    ] + parent::getDefaultProperties();
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function form(array $form, FormStateInterface $form_state) {
+-    $form = parent::form($form, $form_state);
+-
+-    $form['options']['options']['#type'] = 'webform_quiz_webform_element_options';
+-
+-    // Add our custom options.
+-    $form['options']['webform_quiz_number_of_points'] = [
+-      '#type' => 'number',
+-      '#title' => t('Number of points'),
+-      '#description' => t('Enter the number of points for this quiz question.'),
+-    ];
+-    $form['options']['show_answer_description'] = [
+-      '#type' => 'checkbox',
+-      '#title' => $this->t('Show answer description immediately?'),
+-      '#description' => $this->t('If checked, the answer description will be displayed immediately after an option is selected.'),
+-      '#return_value' => TRUE,
+-    ];
+-    $form['options']['allow_change_value'] = [
+-      '#type' => 'checkbox',
+-      '#title' => $this->t('Allow user to change answer?'),
+-      '#description' => $this->t('If checked, the user will be able to update their answer after being shown the answer description.'),
+-      '#return_value' => TRUE,
+-      '#states' => [
+-        'visible' => [
+-          ':input[name="properties[show_answer_description]"]' => ['checked' => TRUE],
+-        ],
+-      ],
+-    ];
+-
+-    return $form;
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+-    $form = parent::buildConfigurationForm($form, $form_state);
+-    $storage = $form_state->getStorage();
+-    $element_properties = $storage['element_properties'];
+-
+-    // Modify the existing element description to distinguish it from the
+-    // correct answer description.
+-    $form['element_description']['description']['#title'] = $this->t('Element Description');
+-
+-    // Add a WYSIWYG for the correct answer description.
+-    $form['element_description']['correct_answer_description'] = [
+-      '#type' => 'webform_html_editor',
+-      '#title' => $this->t('Correct Answer Description'),
+-      '#description' => $this->t('A description of why the correct answer is correct.'),
+-      '#default_value' => isset($element_properties['correct_answer_description']) ? $element_properties['correct_answer_description'] : '',
+-      '#weight' => 0,
+-    ];
+-
+-    return $form;
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
+-    parent::validateConfigurationForm($form, $form_state);
+-
+-    // Make sure no blank options get submitted. If they are, just remove them.
+-    $values = $form_state->getValues();
+-    foreach ($values['options'] as $key => $value) {
+-      if (empty($value)) {
+-        unset($values['options'][$value]);
+-      }
+-    }
+-    $form_state->setValues($values);
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function prepare(array &$element, WebformSubmissionInterface $webform_submission = NULL) {
+-    // This addresses an issue where the webform_quiz_radios element was not
+-    // appearing in the webform.
+-    $element['#type'] = 'radios';
+-
+-    $correct_answer_description_wrapper = [
+-      '#type' => 'container',
+-      '#attributes' => ['id' => self::getElementId($element)],
+-    ];
+-    $element['#suffix'] = Drupal::service('renderer')->render($correct_answer_description_wrapper);
+-
+-    if (!empty($element['#show_answer_description'])) {
+-      $element['#ajax'] = [
+-        'callback' => 'Drupal\webform_quiz\Plugin\WebformElement\WebformQuizRadios::ajaxShowCorrectAnswerDescription',
+-        'event' => 'change',
+-        'progress' => [
+-          'type' => 'throbber',
+-          'message' => NULL,
+-        ],
+-      ];
+-    }
+-
+-    parent::prepare($element, $webform_submission);
+-  }
+-
+-  /**
+-   * Ajax handler to help show the correct description when user clicks an
+-   * option.
+-   *
+-   * @param $form
+-   * @param \Drupal\Core\Form\FormStateInterface $form_state
+-   *
+-   * @return \Drupal\Core\Ajax\AjaxResponse
+-   */
+-  public static function ajaxShowCorrectAnswerDescription(&$form, FormStateInterface $form_state) {
+-    $ajax_response = new AjaxResponse();
+-
+-    $triggering_element = $form_state->getTriggeringElement();
+-    $element_key = $triggering_element['#name'];
+-    // Fix element key when it is multiple as checkboxes.
+-    $multiple = FALSE;
+-    if (preg_match('/\[/', $element_key)) {
+-      list($element_key) = explode('[', $element_key . '[');
+-      $multiple = TRUE;
+-    }
+-
+-    /** @var \Drupal\webform\WebformSubmissionForm $form_obj */
+-    $form_obj = $form_state->getFormObject();
+-    $webform = $form_obj->getWebform();
+-    $element = $webform->getElement($element_key);
+-    $element_id = self::getElementId($element);
+-    $description = isset($element['#correct_answer_description']) ? $element['#correct_answer_description'] : '';
+-
+-    $build['#type'] = 'container';
+-    $build['#attributes']['id'] = $element_id;
+-    $build['description'] = [
+-      '#type' => 'webform_quiz_correct_answer_description',
+-      '#correct_answer' => $element['#correct_answer'],
+-      '#correct_answer_description' => $description,
+-      '#triggering_element' => $triggering_element,
+-    ];
+-
+-    $ajax_response->addCommand(new HtmlCommand('#' . $element_id, $build));
+-
+-    if (isset($element['#allow_change_value']) && empty($element['#allow_change_value'])) {
+-      if ($multiple) {
+-        $selector = sprintf('input[name^="%s["]', $element_key);
+-      }
+-      else {
+-        $selector = sprintf('input[name="%s"]', $element_key);
+-      }
+-
+-      $ajax_response->addCommand(new InvokeCommand($selector, 'prop', ['disabled', 'true']));
+-    }
+-
+-    // Allow other modules to add ajax commands.
+-    Drupal::moduleHandler()->invokeAll('webform_quiz_correct_answer_shown', [$ajax_response, $element, $form_state]);
+-
+-    return $ajax_response;
+-  }
+-
+-  /**
+-   * Builds a unique ID.
+-   *
+-   * @param array $element
+-   *   An element.
+-   *
+-   * @return string
+-   *   The formatted id.
+-   */
+-  public static function getElementId(array $element) {
+-    return 'correct-answer-description-wrapper-' . Html::cleanCssIdentifier($element['#webform_key']);
+-  }
+-
+-}
++class WebformQuizRadios extends WebformQuizBase {}
+diff --git a/src/Plugin/WebformQuizSubmitHandler/WebformQuizElementConfigSubmit.php b/src/Plugin/WebformQuizSubmitHandler/WebformQuizElementConfigSubmit.php
+index ffb41a6..88edcc1 100644
+--- a/src/Plugin/WebformQuizSubmitHandler/WebformQuizElementConfigSubmit.php
++++ b/src/Plugin/WebformQuizSubmitHandler/WebformQuizElementConfigSubmit.php
+@@ -61,9 +61,11 @@ class WebformQuizElementConfigSubmit extends PluginBase implements WebformQuizSu
+       // Save the correct answer description.
+       $values = $form_state->getValues();
+       $correct_answer_description = $values['correct_answer_description'];
++      $incorrect_answer_description = $values['incorrect_answer_description'];
+ 
+       $properties['#correct_answer'] = $correct_answers;
+       $properties['#correct_answer_description'] = $correct_answer_description;
++      $properties['#incorrect_answer_description'] = $incorrect_answer_description;
+ 
+       $webform->setElementProperties($key, $properties, $parent_key);
+ 
+diff --git a/templates/webform-quiz-answer-description.html.twig b/templates/webform-quiz-answer-description.html.twig
+new file mode 100644
+index 0000000..a2d9f21
+--- /dev/null
++++ b/templates/webform-quiz-answer-description.html.twig
+@@ -0,0 +1,12 @@
++{% if (is_user_correct is not empty and correct_answer_description is not empty) or
++  (is_user_correct is empty and incorrect_answer_description is not empty) %}
++  <div class="webform-quiz-answer-description">
++    {% if is_user_correct %}
++      <div class="result correct">Correct</div>
++      {{ correct_answer_description|raw }}
++    {% else %}
++      <div class="result wrong">Wrong</div>
++      {{ incorrect_answer_description|raw }}
++    {% endif %}
++  </div>
++{% endif %}
+diff --git a/templates/webform-quiz-correct-answer-description.html.twig b/templates/webform-quiz-correct-answer-description.html.twig
+deleted file mode 100644
+index 7bc114a..0000000
+--- a/templates/webform-quiz-correct-answer-description.html.twig
++++ /dev/null
+@@ -1,20 +0,0 @@
+-<style>
+-  .webform-quiz-correct-answer-description .result {
+-    font-size: 24px;
+-    font-weight: bold;
+-  }
+-  .webform-quiz-correct-answer-description .correct {
+-    color: green;
+-  }
+-  .webform-quiz-correct-answer-description .wrong {
+-    color: red;
+-  }
+-</style>
+-<div class="webform-quiz-correct-answer-description">
+-  {% if is_user_correct %}
+-    <div class="result correct">Correct</div>
+-  {% else %}
+-    <div class="result wrong">Wrong</div>
+-  {% endif %}
+-  {{ correct_answer_description|raw }}
+-</div>
+diff --git a/webform_quiz.libraries.yml b/webform_quiz.libraries.yml
+new file mode 100644
+index 0000000..e171357
+--- /dev/null
++++ b/webform_quiz.libraries.yml
+@@ -0,0 +1,5 @@
++answer_description:
++  version: VERSION
++  css:
++    theme:
++      css/webform-quiz.answer-description.css: {}
