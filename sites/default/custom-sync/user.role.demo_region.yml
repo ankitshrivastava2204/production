@@ -1,0 +1,11 @@
+uuid: 161db59d-c2b0-4821-8099-1df245b55935
+langcode: en
+status: true
+dependencies: {  }
+id: demo_region
+label: 'Demo region'
+weight: 3
+is_admin: null
+permissions:
+  - 'access toolbar'
+  - 'view the administration theme'

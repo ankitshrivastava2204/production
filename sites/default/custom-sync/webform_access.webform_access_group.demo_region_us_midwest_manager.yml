@@ -1,0 +1,10 @@
+uuid: cdf1346e-cb08-47f4-84a1-3606befa03da
+langcode: en
+status: true
+dependencies: {  }
+id: demo_region_us_midwest_manager
+label: 'United States: Midwest: Manager'
+description: null
+type: demo_region_manager
+permissions:
+  - administer

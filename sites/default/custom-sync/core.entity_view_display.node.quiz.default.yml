@@ -1,0 +1,76 @@
+uuid: 0ba81424-e6ba-4883-a4c0-d2f820597777
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.quiz.body
+    - node.type.quiz
+  module:
+    - field_group
+    - text
+    - user
+third_party_settings:
+  field_group:
+    group_qns:
+      children:
+        - group_aasas
+      parent_name: group_qnss
+      weight: 20
+      format_type: fieldset
+      format_settings:
+        id: ''
+        classes: ''
+        description: ''
+      label: qns-ans
+      region: content
+    group_qnss:
+      children:
+        - group_qns
+      parent_name: ''
+      weight: 2
+      format_type: multipage_group
+      format_settings:
+        id: ''
+        classes: ''
+        page_header: 2
+        page_counter: 1
+        move_button: 1
+        ajaxify: 1
+        nonjs_multistep: false
+        scroll_top: 0
+        button_label: '0'
+        button_label_next: next
+        button_label_prev: prev
+        description: ''
+      label: qnss
+      region: content
+    group_aasas:
+      children: {  }
+      parent_name: group_qns
+      weight: 20
+      format_type: multipage
+      format_settings:
+        id: ''
+        classes: ''
+        description: asas
+        required_fields: true
+      label: aasas
+      region: content
+id: node.quiz.default
+targetEntityType: node
+bundle: quiz
+mode: default
+content:
+  body:
+    label: above
+    type: text_default
+    weight: 1
+    settings: {  }
+    third_party_settings: {  }
+    region: content
+  links:
+    weight: 0
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+hidden: {  }

@@ -1,0 +1,183 @@
+uuid: 30b96c8c-2b3a-405b-a09f-d2a4d8245102
+langcode: en
+status: open
+dependencies:
+  module:
+    - webform_quiz
+third_party_settings:
+  webform_quiz:
+    settings:
+      is_this_a_quiz: '1'
+      allow_retakes: true
+      number_of_retakes_allowed: 2
+      show_statistics: 1
+      passing_score: '70'
+      passing_score_message: "<p>currect</p>\r\n"
+      failing_score_message: "<p>wrong</p>\r\n"
+open: null
+close: null
+weight: 0
+uid: 1
+template: false
+archive: false
+id: webquiz
+title: webquiz
+description: ''
+category: ''
+elements: "page_one:\n  '#type': webform_wizard_page\n  '#title': Page_one\n  '#open': true\n  '#next_button_label': Next\n  '#correct_answer': {  }\n  '#correct_answer_description': null\n  video_tuts:\n    '#type': processed_text\n    '#text': \"<p>\\r\\n<video controls=\\\"controls\\\" height=\\\"360\\\" id=\\\"video\\\" preload=\\\"metadata\\\" src=\\\"http://clips.vorwaerts-gmbh.de/VfE_html5.mp4\\\" width=\\\"640\\\">&nbsp;</video>\\r\\n</p>\\r\\n\"\n    '#format': full_html\n    '#correct_answer': {  }\n    '#correct_answer_description': null\n  video_hidden:\n    '#type': hidden\n    '#title': video_hidden\n    '#correct_answer': {  }\n    '#correct_answer_description': null\npage_two:\n  '#type': webform_wizard_page\n  '#title': page_two\n  '#title_display': ''\n  '#description_display': ''\n  '#open': true\n  '#required': true\n  '#prev_button_label': previous\n  '#next_button_label': Next\n  '#correct_answer': {  }\n  '#correct_answer_description': null\n  tutorial_is_:\n    '#type': webform_quiz_radios\n    '#title': 'tutorial is...'\n    '#title_display': before\n    '#description_display': before\n    '#options':\n      Drupal: Drupal\n      Magento: Magento\n      Wordpress: Wordpress\n    '#required': true\n    '#required_error': 'any one buddy'\n    '#correct_answer':\n      Magento: Magento\n    '#correct_answer_description': ''\npage_three:\n  '#type': webform_wizard_page\n  '#title': page_three\n  '#description_display': before\n  '#open': true\n  '#required': true\n  '#prev_button_label': previous\n  '#next_button_label': Next\n  '#correct_answer': {  }\n  '#correct_answer_description': null\n  workin_on_:\n    '#type': webform_quiz_radios\n    '#title': 'Workin on....'\n    '#options':\n      NTF: NTF\n      FTN: FTN\n      TNF: TNF\n    '#required': true\n    '#correct_answer':\n      NTF: NTF\n    '#correct_answer_description': ''"
+css: ''
+javascript: ''
+settings:
+  ajax: true
+  ajax_scroll_top: page
+  page: true
+  page_submit_path: ''
+  page_confirm_path: ''
+  form_title: source_entity_webform
+  form_submit_once: false
+  form_exception_message: ''
+  form_open_message: ''
+  form_close_message: ''
+  form_previous_submissions: false
+  form_confidential: false
+  form_confidential_message: ''
+  form_remote_addr: true
+  form_convert_anonymous: false
+  form_prepopulate: true
+  form_prepopulate_source_entity: false
+  form_prepopulate_source_entity_required: false
+  form_prepopulate_source_entity_type: ''
+  form_reset: false
+  form_disable_autocomplete: false
+  form_novalidate: false
+  form_disable_inline_errors: false
+  form_required: true
+  form_unsaved: true
+  form_disable_back: false
+  form_submit_back: true
+  form_autofocus: false
+  form_details_toggle: false
+  form_access_denied: default
+  form_access_denied_title: ''
+  form_access_denied_message: ''
+  form_access_denied_attributes: {  }
+  form_file_limit: ''
+  submission_label: ''
+  submission_log: false
+  submission_views: {  }
+  submission_views_replace:
+    webform_routes: {  }
+    node_routes: {  }
+  submission_user_columns: {  }
+  submission_user_duplicate: false
+  submission_access_denied: default
+  submission_access_denied_title: hi
+  submission_access_denied_message: ssss
+  submission_access_denied_attributes: {  }
+  submission_exception_message: ''
+  submission_locked_message: ''
+  submission_excluded_elements: {  }
+  submission_exclude_empty: false
+  submission_exclude_empty_checkbox: false
+  previous_submission_message: ''
+  previous_submissions_message: ''
+  autofill: false
+  autofill_message: ''
+  autofill_excluded_elements: {  }
+  wizard_progress_bar: true
+  wizard_progress_pages: false
+  wizard_progress_percentage: false
+  wizard_progress_link: false
+  wizard_start_label: ''
+  wizard_preview_link: false
+  wizard_confirmation: true
+  wizard_confirmation_label: ''
+  wizard_track: ''
+  preview: 2
+  preview_label: d
+  preview_title: dd
+  preview_message: ''
+  preview_attributes: {  }
+  preview_excluded_elements: {  }
+  preview_exclude_empty: true
+  preview_exclude_empty_checkbox: false
+  draft: none
+  draft_multiple: false
+  draft_auto_save: false
+  draft_saved_message: ''
+  draft_loaded_message: ''
+  confirmation_type: page
+  confirmation_title: ''
+  confirmation_message: ''
+  confirmation_url: ''
+  confirmation_attributes: {  }
+  confirmation_back: true
+  confirmation_back_label: ''
+  confirmation_back_attributes: {  }
+  confirmation_exclude_query: false
+  confirmation_exclude_token: false
+  limit_total: 32
+  limit_total_interval: null
+  limit_total_message: ''
+  limit_total_unique: false
+  limit_user: null
+  limit_user_interval: null
+  limit_user_message: ''
+  limit_user_unique: false
+  entity_limit_total: null
+  entity_limit_total_interval: null
+  entity_limit_user: null
+  entity_limit_user_interval: null
+  purge: none
+  purge_days: null
+  results_disabled: false
+  results_disabled_ignore: false
+  token_update: true
+access:
+  create:
+    roles:
+      - anonymous
+      - authenticated
+    users: {  }
+    permissions: {  }
+  view_any:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  update_any:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  delete_any:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  purge_any:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  view_own:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  update_own:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  delete_own:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  administer:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  test:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+  configuration:
+    roles: {  }
+    users: {  }
+    permissions: {  }
+handlers: {  }
